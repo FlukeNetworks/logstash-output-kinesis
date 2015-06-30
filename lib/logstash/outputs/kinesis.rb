@@ -146,16 +146,13 @@ class LogStash::Outputs::Kinesis < LogStash::Outputs::Base
     failed_events = []
 
     # Check each page in the response
-    responses.each do |response_page|
-      # Check each record in each page
-      response_page.data.records.each do |response_record|
-        # Collect all failed records
-        if not response_record.error_code.nil?
-          @logger.info("put_records: #{response_record.error_message} (#{response_record.error_code})")
-          failed_events.push(events[response_record_index])
-        end
-        response_record_index += 1
+    responses.each do |response_record|
+      # Collect all failed records
+      if not response_record.error_code.nil?
+        @logger.info("put_records: #{response_record.error_message} (#{response_record.error_code})")
+        failed_events.push(events[response_record_index])
       end
+      response_record_index += 1
     end
 
     return failed_events
@@ -173,7 +170,9 @@ class LogStash::Outputs::Kinesis < LogStash::Outputs::Base
         stream_name: @stream_name
       )
 
-      failed_events = get_failed_records(responses, events)
+      break if responses.failed_record_count == 0
+
+      failed_events = get_failed_records(responses.records, events)
 
       # Retry if failed events if any
       break if failed_events.count == 0
